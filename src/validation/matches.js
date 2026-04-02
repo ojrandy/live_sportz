@@ -14,9 +14,7 @@ const matchIdParamSchema = z.object({
   id: z.coerce.number().int().positive(),
 });
 
-const isoDateStringSchema = z.string().refine((val) => !isNaN(Date.parse(val)), 
-      { message: 'Invalid ISO date string' 
-      });
+const isoDateStringSchema = z.iso.datetime();
 
       // validate the input for creating a match, ensuring that startTime is before endTime and that scores are non-negative integers if provided
 const createMatchSchema = z.object({
