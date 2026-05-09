@@ -54,9 +54,16 @@ matchesRouter.post('/', async (req, res) => {
        awayScore: awayScore ?? 0,
        status: getMatchStatus(startTime, endTime) // this is from the utils 
   }).returning();
-  res.status(201).json({data: event, message: 'Match created successfully' });
- } catch (e) {
-  res.status(500).json({ error: 'Failed to create match', details: JSON.stringify(e) });
- }
 
-});
+  // Check if match exists before broadcasting
+      if (res.app.locals.broadcastMatchCreated) {
+            res.app.locals.broadcastMatchCreated(event); // this line calls the broadcastMatchCreated function that we defined in our WebSocket server, passing the newly created match event as an argument, which will then broadcast this event to all connected WebSocket clients, allowing them to receive real-time updates about new matches being created.
+      }
+
+  res.status(201).json({data: event, message: 'Match created successfully' });
+    } 
+    catch (e) {
+      res.status(500).json({ error: 'Failed to create match', details: JSON.stringify(e) });
+   }
+
+})
