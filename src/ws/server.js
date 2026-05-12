@@ -10,7 +10,7 @@ function sendJson(socket, payload) {
 // sending broadcast to every connected user
  function broadcast(wss, payload) {
       for (const client of wss.clients) {
-      if (client.readyState !== WebSocket.OPEN) return;
+      if (client.readyState !== WebSocket.OPEN) continue;
 
       client.send(JSON.stringify(payload));
       }
@@ -18,20 +18,34 @@ function sendJson(socket, payload) {
 
 // Attaching the WebSocket server to the existing HTTP server, allowing it to handle WebSocket connections alongside regular HTTP requests, enabling real-time communication capabilities for the application
 export function attachWebSocketServer(server) {
-      const wss = new WebSocketServer({ 
-            server,
-            path: "/ws", // This specifies the path on which the WebSocket server will listen for incoming connections
-            maxPayload: 1024 * 1024, // This is very important against flooding attacks and memory leaks. as it sets max of 1MB for imcoming messages. 
-      }); 
+      const wss = new WebSocketServer({ server, path: "/ws", maxPayload: 1024 * 1024 }); // 1MB max payload
 
-      wss.on("connection", (socket) => { 
-            sendJson(socket, { type: "welcome", message: "Welcome to the WebSocket server!" });
+      wss.on("connection", (socket) => {
+            socket.isAlive = true;
+            // The ping-pong mechanism is implemented to detect and close dead connections, ensuring that the WebSocket server maintains only active connections and improves resource management by periodically checking the health of each connection
+            socket.on("pong", () => {
+                  socket.isAlive = true;
+            });
+
+            sendJson(socket, { type: "welcome" });
 
             socket.on('error', console.error);
       });
 
+      // the ping
+      const interval = setInterval(() => {
+            wss.clients.forEach((ws) => {
+                  if (ws.isAlive === false) return ws.terminate();
+
+                  ws.isAlive = false;
+                  ws.ping();
+            });
+      }, 30000); // Ping every 30 seconds
+
+      wss.on('close', () => clearInterval(interval));
+
       function broadcastMatchCreated(match) {
-            broadcast(wss, { type: "match_created", data: match });
+            broadcast(wss, { type: "matchCreated", data: match });
       }
 
       return { broadcastMatchCreated };
